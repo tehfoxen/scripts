@@ -1,6 +1,4 @@
 📌 **Скрипт: автоматические напоминания об оплате из Google Таблиц в Telegram**
-
-
 function checkPaymentsAndNotify() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   const data = sheet.getDataRange().getValues();
