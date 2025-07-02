@@ -1,0 +1,81 @@
+📌 **Скрипт: автоматические напоминания об оплате из Google Таблиц в Telegram**
+
+```javascript
+function checkPaymentsAndNotify() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const botToken = "ВАШ_ТОКЕН";
+  const chatIds = ["241335883", "620271429"]; // получатели
+
+  const SERVICE_HEADER = "Название услуги";
+  const DATE_HEADER = "Дата окончания";
+  const PAID_HEADER = "Оплачено";
+
+  const serviceCol = headers.indexOf(SERVICE_HEADER);
+  const dateCol = headers.indexOf(DATE_HEADER);
+  const paidCol = headers.indexOf(PAID_HEADER);
+
+  if (serviceCol === -1 || dateCol === -1 || paidCol === -1) {
+    Logger.log(`❌ Не найдены заголовки: '${SERVICE_HEADER}', '${DATE_HEADER}' или '${PAID_HEADER}'`);
+    return;
+  }
+
+  let message = "";
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const service = row[serviceCol];
+    const paid = row[paidCol];
+    const cellDate = sheet.getRange(i + 1, dateCol + 1).getValue();
+
+    if (!cellDate || paid === true) continue;
+
+    const endDate = new Date(cellDate);
+    endDate.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.floor((endDate - today) / (1000 * 60 * 60 * 24));
+
+    if ([0, 1, 3].includes(diffDays)) {
+      const when =
+        diffDays === 0 ? "сегодня" :
+        diffDays === 1 ? "завтра" : "через 3 дня";
+
+      const formatted = Utilities.formatDate(endDate, Session.getScriptTimeZone(), "dd.MM.yyyy");
+      message += `💸 Напоминание: *${service}* — оплата ${when} (${formatted})\n`;
+    }
+  }
+
+  if (message) {
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+    chatIds.forEach(id => {
+      const payload = {
+        chat_id: id,
+        text: message,
+        parse_mode: "Markdown"
+      };
+
+      try {
+        UrlFetchApp.fetch(url, {
+          method: "post",
+          contentType: "application/json",
+          payload: JSON.stringify(payload)
+        });
+        Logger.log(`✅ Отправлено в чат ${id}`);
+      } catch (error) {
+        Logger.log(`❌ Ошибка при отправке в чат ${id}: ${error.message}`);
+      }
+    });
+
+    Logger.log("📨 Отправленное сообщение:");
+    Logger.log(message);
+  } else {
+    Logger.log("ℹ️ Нет подходящих записей для уведомления.");
+  }
+}
+```
